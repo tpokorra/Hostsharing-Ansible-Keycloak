@@ -1,0 +1,11 @@
+DirectoryIndex disabled
+RewriteEngine On
+RewriteBase /
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-l
+RewriteRule ^(.*) http://127.0.0.1:{{keycloak_http_port}}/$1 [proxy,last]
+
+# to work around issue with /js/keycloak.js
+AddOutputFilterByType SUBSTITUTE text/html
+Substitute s#http://{{domain}}/js#https://{{domain}}/js#ni
+Substitute s#redirect_uri=https://#redirect_uri=http://#ni

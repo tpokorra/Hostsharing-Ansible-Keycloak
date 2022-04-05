@@ -13,6 +13,12 @@
   #################################
   ## create directories
   #################################
+  - name: create directory bin
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/bin"
+      state: directory
   - name: create directory etc
     become: yes
     become_user: "{{pac}}-{{user}}"
@@ -39,43 +45,117 @@
       state: directory
 
   #################################
-  ## install requirements
+  ## upload files
   #################################
-  - name: Install node.js
-    import_tasks: tasks/hs_nodejs.yml
-
-  - name: Install ruby
-    import_tasks: tasks/hs_ruby.yml
+  - name: upload monit configuration
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/.monitrc" src="templates/monitrc" mode=0600
+  - name: upload start script
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/bin" src="templates/start-keycloak.sh" mode=0700
+  - name: upload stop script
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/bin" src="templates/stop-keycloak.sh" mode=0700
 
   ##################################
   ## install keycloak
   ##################################
+  - name: install keycloak
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    unarchive:
+      src: https://github.com/keycloak/keycloak/releases/download/{{keycloak_version}}/keycloak-{{keycloak_version}}.zip
+      remote_src: yes
+      dest: /home/pacs/{{pac}}/users/{{user}}
 
-  # TODO
+  - name: set symbolic link for keycloak
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/keycloak"
+      src: "/home/pacs/{{pac}}/users/{{user}}/keycloak-{{keycloak_version}}"
+      state: link
 
   ##################################
   ## configuration
   ##################################
+  - name: configure postgresql
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    lineinfile:
+      path: "/home/pacs/{{pac}}/users/{{user}}/keycloak/conf/keycloak.conf"
+      regexp: "^[#]db=.*$"
+      line: "db=postgres"
 
-  # TODO
+  - name: configure postgresql user name
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    lineinfile:
+      path: "/home/pacs/{{pac}}/users/{{user}}/keycloak/conf/keycloak.conf"
+      regexp: "^[#]db-username=.*$"
+      line: "db-username={{pac}}_{{user}}"
+
+  - name: configure postgresql user password
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    lineinfile:
+      path: "/home/pacs/{{pac}}/users/{{user}}/keycloak/conf/keycloak.conf"
+      regexp: "^[#]db-password=.*$"
+      line: "db-password={{password}}"
+
+  - name: configure postgresql database name
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    lineinfile:
+      path: "/home/pacs/{{pac}}/users/{{user}}/keycloak/conf/keycloak.conf"
+      regexp: "^[#]db-url=.*$"
+      line: "db-url=jdbc:postgresql://localhost/{{pac}}_{{user}}"
+
+  - name: configure proxy
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    lineinfile:
+      path: "/home/pacs/{{pac}}/users/{{user}}/keycloak/conf/keycloak.conf"
+      regexp: "^[#]proxy=.*$"
+      line: "proxy=edge"
+
+  - name: configure hostname
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    lineinfile:
+      path: "/home/pacs/{{pac}}/users/{{user}}/keycloak/conf/keycloak.conf"
+      regexp: "^[#]hostname=.*$"
+      line: "hostname={{domain}}"
 
   ######################
   ## initialise instance
   ######################
+  - name: build keycloak environment
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    shell: |
+      export KEYCLOAK_ADMIN={{admin_username}}
+      export KEYCLOAK_ADMIN_PASSWORD={{admin_password}}
+      export KC_PROXY=edge
+      export KC_HOSTNAME={{domain}}
+      #export KC_HOSTNAME_STRICT_HTTPS=true
+      ./bin/kc.sh --profile=prod build || exit -1
+      touch $HOME/.ansible_keycloak_built
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/keycloak"
+      creates: "/home/pacs/{{pac}}/users/{{user}}/.ansible_keycloak_built"
 
-  # TODO
-
-  ########################
-  ## setup the apache site
-  ########################
-
-  # TODO
-
-  ####################################
-  ## install cron jobs
-  ####################################
-
-  # TODO
+  #################################
+  ## apache configuration
+  #################################
+  - name: upload .htaccess
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/htdocs-ssl/.htaccess" src="templates/htaccess" mode=0644
 
   ##############################################
   ## start services via monit

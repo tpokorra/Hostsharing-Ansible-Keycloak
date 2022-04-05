@@ -7,3 +7,10 @@ keycloak:
       domain: keycloak.example.org
       user: keycloak
       password: testpassw0rd_changeme
+
+      admin_username: admin_kc
+      admin_password: top_secret
+
+      keycloak_http_port: 8080
+
+      keycloak_version: 17.0.1
