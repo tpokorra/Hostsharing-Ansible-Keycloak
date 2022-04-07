@@ -137,8 +137,6 @@
     become: yes
     become_user: "{{pac}}-{{user}}"
     shell: |
-      export KEYCLOAK_ADMIN={{admin_username}}
-      export KEYCLOAK_ADMIN_PASSWORD={{admin_password}}
       export KC_PROXY=edge
       export KC_HOSTNAME={{domain}}
       #export KC_HOSTNAME_STRICT_HTTPS=true
@@ -148,6 +146,21 @@
       executable: /bin/bash
       chdir: "/home/pacs/{{pac}}/users/{{user}}/keycloak"
       creates: "/home/pacs/{{pac}}/users/{{user}}/.ansible_keycloak_built"
+
+  - name: start service once to create the admin user
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    shell: |
+      export KEYCLOAK_ADMIN={{admin_username}}
+      export KEYCLOAK_ADMIN_PASSWORD={{admin_password}}
+      /home/pacs/{{pac}}/users/{{user}}/bin/start-keycloak.sh
+      sleep 10
+      /home/pacs/{{pac}}/users/{{user}}/bin/stop-keycloak.sh
+      touch "/home/pacs/{{pac}}/users/{{user}}/.ansible_keycloak_admininit"
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/"
+      creates: "/home/pacs/{{pac}}/users/{{user}}/.ansible_keycloak_admininit"
 
   #################################
   ## apache configuration
