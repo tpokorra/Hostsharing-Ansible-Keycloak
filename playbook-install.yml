@@ -170,6 +170,17 @@
     become_user: "{{pac}}-{{user}}"
     template: dest="/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/htdocs-ssl/.htaccess" src="templates/htaccess" mode=0644
 
+  ####################################
+  ## install cron jobs
+  ####################################
+  - name: start monit as cronjob
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    cron:
+      name: "start monit at reboot"
+      special_time: reboot
+      job: rm -f $HOME/var/run/* && /usr/bin/monit -c "$HOME/.monitrc"
+
   ##############################################
   ## start services via monit
   ##############################################
