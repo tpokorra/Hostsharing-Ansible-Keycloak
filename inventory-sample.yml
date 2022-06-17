@@ -13,4 +13,5 @@ keycloak:
 
       keycloak_http_port: 8080
 
-      keycloak_version: 17.0.0
+      # see https://github.com/keycloak/keycloak/releases
+      keycloak_version: 18.0.1
