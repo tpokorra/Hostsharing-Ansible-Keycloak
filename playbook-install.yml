@@ -166,7 +166,7 @@
       /home/pacs/{{pac}}/users/{{user}}/bin/start-keycloak.sh
       #[org.keycloak.services] (main) KC-SERVICES0050: Initializing master realm
       #[org.keycloak.services] (main) KC-SERVICES0009: Added user 'admin_kc' to realm 'master'
-      sleep 60
+      sleep 120
       /home/pacs/{{pac}}/users/{{user}}/bin/stop-keycloak.sh
       touch "/home/pacs/{{pac}}/users/{{user}}/.ansible_keycloak_admininit"
     args:
