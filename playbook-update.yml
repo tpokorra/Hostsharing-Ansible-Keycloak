@@ -1,0 +1,73 @@
+---
+- hosts: keycloak
+  become_user: "{{pac}}-{{user}}"
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    # see https://docs.ansible.com/ansible/latest/user_guide/become.html#risks-of-becoming-an-unprivileged-user
+    ansible_common_remote_group: "{{pac}}"
+    ansible_remote_tmp: ~/.ansible/tmp
+
+  # see https://www.keycloak.org/docs/latest/upgrading/index.html
+
+  tasks:
+
+    # TODO: Handle any open transactions and delete the data/tx-object-store/ transaction directory.
+
+  - name: stop monit
+    become: yes
+    shell: |
+      killall -u {{pac}}-{{user}} monit
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/"
+
+  - name: stop keycloak service
+    become: yes
+    shell: |
+      $HOME/bin/stop-keycloak.sh || exit -1
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/"
+
+  - name: install keycloak
+    become: yes
+    unarchive:
+      src: https://github.com/keycloak/keycloak/releases/download/{{keycloak_version}}/keycloak-{{keycloak_version}}.zip
+      remote_src: yes
+      dest: /home/pacs/{{pac}}/users/{{user}}
+
+  - name: set symbolic link for keycloak
+    become: yes
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/keycloak"
+      src: "/home/pacs/{{pac}}/users/{{user}}/keycloak-{{keycloak_version}}"
+      state: link
+
+  - name: copy directories from previous installation to the new installation
+    become: yes
+    shell: |
+      cp -Rf keycloak-{{previous_keycloak_version}}/conf keycloak-{{keycloak_version}} || exit -1
+      cp -Rf keycloak-{{previous_keycloak_version}}/providers keycloak-{{keycloak_version}} || exit -1
+      cp -Rf keycloak-{{previous_keycloak_version}}/themes keycloak-{{keycloak_version}} || exit -1
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/"
+
+  - name: start keycloak to upgrade the database
+    become: yes
+    shell: |
+      ./bin/kc.sh start --spi-connections-jpa-legacy-migration-strategy=update &
+      echo $! >$HOME/var/run/keycloak.pid
+      sleep 150
+      /home/pacs/{{pac}}/users/{{user}}/bin/stop-keycloak.sh
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/keycloak"
+
+  - name: start monit which will start keycloak service
+    become: yes
+    shell: |
+      rm -f $HOME/var/run/* && /usr/bin/monit -c "$HOME/.monitrc"
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/"
